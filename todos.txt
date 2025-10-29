@@ -1,0 +1,1 @@
+1. add asserts for * instead of 'if'

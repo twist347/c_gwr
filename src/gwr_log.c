@@ -15,6 +15,7 @@ static const char *level_names[] = {
 
 void GWR_log(GWR_log_level_e level, const char *msg, ...) {
     assert(level < GWR_LOG__COUNT);
+    assert(msg);
 
     printf("[%s] ", level_names[level]);
 

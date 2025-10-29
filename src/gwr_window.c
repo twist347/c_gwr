@@ -1,4 +1,7 @@
 #include "gwr_window.h"
+
+#include <assert.h>
+
 #include "gwr_log.h"
 #include "gwr_config.h"
 
@@ -6,6 +9,8 @@
 #include <stdlib.h>
 
 #include <glad/glad.h>
+
+#include "gwr_util.h"
 #include "GLFW/glfw3.h"
 
 #define WINDOW_LOG(level, msg, ...)    GWR_log((level), "[WINDOW]: " msg, ##__VA_ARGS__)
@@ -26,6 +31,10 @@ static bool init_glad(void);
 // public funcs
 
 GWR_window_t *GWR_window_create(int width, int height, const char *title) {
+    assert(width);
+    assert(height);
+    assert(title);
+
     if (!glfwInit()) {
         WINDOW_LOG(GWR_LOG_ERROR, "failed to initialize GLFW");
         return NULL;
@@ -76,15 +85,14 @@ GWR_window_t *GWR_window_create(int width, int height, const char *title) {
 }
 
 void GWR_window_destroy(GWR_window_t *window) {
-    if (!window) {
-        return;
-    }
+    assert(window);
+    assert(window->handle);
 
-    if (window->handle) {
-        glfwDestroyWindow(window->handle);
-        window->handle = NULL;
-    }
+    glfwDestroyWindow(window->handle);
+    window->handle = NULL;
+
     free(window);
+    window = NULL;
 
     glfwTerminate();
 }
@@ -98,25 +106,26 @@ void GWR_window_set_vsync(bool enabled) {
 }
 
 bool GWR_window_should_close(const GWR_window_t *window) {
-    if (!window || !window->handle) {
-        return true;
-    }
+    assert(window);
+    assert(window->handle);
+
     return glfwWindowShouldClose(window->handle);
 }
 
 void GWR_window_process_input(const GWR_window_t *window) {
-    if (!window || !window->handle) {
-        return;
-    }
+    assert(window);
+    assert(window->handle);
+
     if (glfwGetKey(GWR_window_get_handle(window), GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(GWR_window_get_handle(window), GLFW_TRUE);
     }
 }
 
 void GWR_window_swap_buffers(const GWR_window_t *window) {
-    if (window && window->handle) {
-        glfwSwapBuffers(window->handle);
-    }
+    assert(window);
+    assert(window->handle);
+
+    glfwSwapBuffers(window->handle);
 }
 
 void GWR_window_poll_events(void) {
@@ -132,15 +141,15 @@ void GWR_window_clear(void) {
 }
 
 void GWR_window_set_current(GWR_window_t *window) {
-    if (window && window->handle) {
-        glfwMakeContextCurrent(window->handle);
-    }
+    assert(window);
+    assert(window->handle);
+
+    glfwMakeContextCurrent(window->handle);
 }
 
 int GWR_window_get_width(const GWR_window_t *window) {
-    if (!window || !window->handle) {
-        return 0;
-    }
+    assert(window);
+    assert(window->handle);
 
     int width, height;
     glfwGetWindowSize(window->handle, &width, &height);
@@ -148,9 +157,8 @@ int GWR_window_get_width(const GWR_window_t *window) {
 }
 
 int GWR_window_get_height(const GWR_window_t *window) {
-    if (!window || !window->handle) {
-        return 0;
-    }
+    assert(window);
+    assert(window->handle);
 
     int width, height;
     glfwGetWindowSize(window->handle, &width, &height);
@@ -178,7 +186,9 @@ static void require_opengl_version_or_die(int req_major, int req_minor) {
 }
 
 static void framebuffer_size_callback(GLFWwindow *handle, int width, int height) {
-    (void) handle;
+    assert(handle);
+
+    GWR_UNUSED(handle);
     glViewport(0, 0, width, height);
 }
 

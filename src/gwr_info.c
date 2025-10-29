@@ -6,7 +6,7 @@
 #include "glad/glad.h"
 
 void GWR_info_print(void) {
-    GLint major = 0, minor = 0, profile = 0, n_ext = 0, samples = 0;
+    GLint major = 0, minor = 0, profile = 0, n_ext = 0;
     const char *vendor = (const char *) glGetString(GL_VENDOR);
     const char *renderer = (const char *) glGetString(GL_RENDERER);
     const char *version = (const char *) glGetString(GL_VERSION);
@@ -16,7 +16,6 @@ void GWR_info_print(void) {
     glGetIntegerv(GL_MINOR_VERSION, &minor);
     glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &profile);
     glGetIntegerv(GL_NUM_EXTENSIONS, &n_ext);
-    glGetIntegerv(GL_SAMPLES, &samples);
 
     const char *profile_str =
             profile & GL_CONTEXT_CORE_PROFILE_BIT
@@ -31,5 +30,6 @@ void GWR_info_print(void) {
     fprintf(stdout, "Vendor:     %s\n", vendor ? vendor : "?");
     fprintf(stdout, "Renderer:   %s\n", renderer ? renderer : "?");
     fprintf(stdout, "Profile:    %s\n", profile_str);
+    fprintf(stdout, "Extensions: %d\n", n_ext);
     fprintf(stdout, "------------------------------------------------\n");
 }

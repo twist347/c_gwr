@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <assert.h>
 
 #define VB_LOG(level, msg, ...)    GWR_log((level), "[VERTEX BUFFER]: " msg, ##__VA_ARGS__)
 
@@ -12,7 +14,7 @@ struct GWR_vertex_buffer_t {
     GLenum usage;
 };
 
-static int check_created_size(GLenum target, GLsizeiptr expected);
+static bool check_created_size(GLenum target, GLsizeiptr expected);
 
 GWR_vertex_buffer_t *GWR_vertex_buffer_create(const void *data, GLsizeiptr size, GLenum usage) {
     if (size <= 0) {
@@ -39,7 +41,7 @@ GWR_vertex_buffer_t *GWR_vertex_buffer_create(const void *data, GLsizeiptr size,
 
     glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
     glBufferData(GL_ARRAY_BUFFER, size, data, usage);
-    const int ok = check_created_size(GL_ARRAY_BUFFER, size);
+    const bool ok = check_created_size(GL_ARRAY_BUFFER, size);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     if (!ok) {
@@ -54,45 +56,62 @@ GWR_vertex_buffer_t *GWR_vertex_buffer_create(const void *data, GLsizeiptr size,
     return buffer;
 }
 
-void GWR_vertex_buffer_destroy(GWR_vertex_buffer_t *buffer) {
-    if (buffer) {
-        if (buffer->id) {
-            glDeleteBuffers(1, &buffer->id);
-            buffer->id = 0;
-        }
-        free(buffer);
-        buffer = NULL;
-    }
+void GWR_vertex_buffer_destroy(GWR_vertex_buffer_t *vbo) {
+    assert(vbo);
+    assert(vbo->id);
+
+    glDeleteBuffers(1, &vbo->id);
+    vbo->id = 0;
+
+    free(vbo);
+    vbo = NULL;
 }
 
-void GWR_vertex_buffer_bind(const GWR_vertex_buffer_t *buffer) {
-    if (buffer && buffer->id) {
-        glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
-    }
+void GWR_vertex_buffer_bind(const GWR_vertex_buffer_t *vbo) {
+    assert(vbo);
+    assert(vbo->id);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo->id);
 }
 
 void GWR_vertex_buffer_unbind(void) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void GWR_vertex_buffer_set_data(GWR_vertex_buffer_t *buffer, const void *data, GLsizeiptr size) {
-    if (buffer && buffer->id && data && size > 0) {
-        glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
-        glBufferData(GL_ARRAY_BUFFER, size, data, buffer->usage);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        buffer->size = size;
-    }
+void GWR_vertex_buffer_set_data(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size) {
+    assert(vbo);
+    assert(vbo->id);
+    assert(data);
+    assert(vbo->size);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo->id);
+    glBufferData(GL_ARRAY_BUFFER, size, data, vbo->usage);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    vbo->size = size;
 }
 
-GLuint GWR_vertex_buffer_get_id(const GWR_vertex_buffer_t *buffer) {
-    return buffer ? buffer->id : 0;
+GLuint GWR_vertex_buffer_get_id(const GWR_vertex_buffer_t *vbo) {
+    assert(vbo);
+    assert(vbo->id);
+
+    return vbo->id;
 }
 
-GLsizeiptr GWR_vertex_buffer_get_size(const GWR_vertex_buffer_t *buffer) {
-    return buffer ? buffer->size : 0;
+GLsizeiptr GWR_vertex_buffer_get_size(const GWR_vertex_buffer_t *vbo) {
+    assert(vbo);
+    assert(vbo->size);
+
+    return vbo->size;
 }
 
-static int check_created_size(GLenum target, GLsizeiptr expected) {
+GLenum GWR_vertex_buffer_get_usage(const GWR_vertex_buffer_t *vbo) {
+    assert(vbo);
+    assert(vbo->usage);
+
+    return vbo->usage;
+}
+
+static bool check_created_size(GLenum target, GLsizeiptr expected) {
     GLint64 actual = 0;
     glGetBufferParameteri64v(target, GL_BUFFER_SIZE, &actual);
     return actual == expected;

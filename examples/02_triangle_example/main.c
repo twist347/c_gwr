@@ -74,13 +74,13 @@ int main() {
 
     GWR_vertex_array_attrib_pointerf(
         vao, vbo,
-        0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat),
+        0, GWR_ARR_LEN(vertices), GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat),
         (void *) offsetof(vertex_t, pos)
     );
 
     GWR_vertex_array_attrib_pointerf(
         vao, vbo,
-        1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat),
+        1, GWR_ARR_LEN(vertices), GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat),
         (void *) offsetof(vertex_t, color)
     );
 
@@ -97,10 +97,7 @@ int main() {
 
         GWR_window_clear();
 
-        GWR_shader_use(shader);
-        GWR_vertex_array_bind(vao);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        GWR_vertex_array_unbind();
+        GWR_draw_arrays(GL_TRIANGLES, vao, shader, 0, GWR_ARR_LEN(vertices));
 
         GWR_window_swap_buffers(window);
         GWR_window_poll_events();

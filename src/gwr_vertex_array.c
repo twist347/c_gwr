@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #define VA_LOG(level, msg, ...)    GWR_log((level), "[VERTEX ARRAY]: " msg, ##__VA_ARGS__)
 
@@ -29,88 +30,99 @@ GWR_vertex_array_t *GWR_vertex_array_create(void) {
     return array;
 }
 
-void GWR_vertex_array_destroy(GWR_vertex_array_t *array) {
-    if (array) {
-        if (array->id) {
-            glDeleteVertexArrays(1, &array->id);
-            array->id = 0;
-        }
-        free(array);
-    }
+void GWR_vertex_array_destroy(GWR_vertex_array_t *vao) {
+    assert(vao);
+    assert(vao->id);
+
+    glDeleteVertexArrays(1, &vao->id);
+    vao->id = 0;
+
+    free(vao);
+    vao = NULL;
 }
 
-void GWR_vertex_array_bind(const GWR_vertex_array_t *array) {
-    if (array && array->id) {
-        glBindVertexArray(array->id);
-    }
+void GWR_vertex_array_bind(const GWR_vertex_array_t *vao) {
+    assert(vao);
+    assert(vao->id);
+
+    glBindVertexArray(vao->id);
 }
 
 void GWR_vertex_array_unbind(void) {
     glBindVertexArray(0);
 }
 
-GLuint GWR_vertex_array_get_id(const GWR_vertex_array_t *array) {
-    return array ? array->id : 0;
+void GWR_vertex_array_set_element_buffer(const GWR_vertex_array_t *vao, const GWR_element_buffer_t *ebo) {
+    assert(vao);
+    assert(vao->id);
+    assert(ebo);
+
+    glBindVertexArray(vao->id);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GWR_element_buffer_get_id(ebo));
+    glBindVertexArray(0);
 }
 
-void GWR_vertex_array_enable_attrib(GLuint index) {
-    glEnableVertexAttribArray(index);
+GLuint GWR_vertex_array_get_id(const GWR_vertex_array_t *vao) {
+    assert(vao);
+    assert(vao->id);
+
+    return vao->id;
 }
 
-void GWR_vertex_array_disable_attrib(GLuint index) {
-    glDisableVertexAttribArray(index);
+void GWR_vertex_array_enable_attrib(GLuint idx) {
+    glEnableVertexAttribArray(idx);
 }
 
-void GWR_vertex_array_set_divisor(GLuint index, GLuint divisor) {
-    glVertexAttribDivisor(index, divisor);
+void GWR_vertex_array_disable_attrib(GLuint idx) {
+    glDisableVertexAttribArray(idx);
 }
 
 void GWR_vertex_array_attrib_pointerf(
     const GWR_vertex_array_t *vao,
     const GWR_vertex_buffer_t *vbo,
-    GLuint index, GLint size, GLenum type, GLboolean normalized,
+    GLuint idx, GLint size, GLenum type, GLboolean normalized,
     GLsizei stride, const void *pointer
 ) {
-    if (!vao || !vbo) {
-        VA_LOG(GWR_LOG_ERROR, "attrib_pointerf: null vao or vbo");
-        return;
-    }
+    assert(vao);
+    assert(vbo);
+
     bind_vao_and_vbo(vao, vbo);
-    glVertexAttribPointer(index, size, type, normalized, stride, pointer);
-    glEnableVertexAttribArray(index);
+    glVertexAttribPointer(idx, size, type, normalized, stride, pointer);
+    glEnableVertexAttribArray(idx);
 }
 
 void GWR_vertex_array_attrib_pointeri(
     const GWR_vertex_array_t *vao,
     const GWR_vertex_buffer_t *vbo,
-    GLuint index, GLint size, GLenum type,
+    GLuint idx, GLint size, GLenum type,
     GLsizei stride, const void *pointer
 ) {
-    if (!vao || !vbo) {
-        VA_LOG(GWR_LOG_ERROR, "attrib_pointeri: null vao or vbo");
-        return;
-    }
+    assert(vao);
+    assert(vbo);
+
     bind_vao_and_vbo(vao, vbo);
-    glVertexAttribIPointer(index, size, type, stride, pointer);
-    glEnableVertexAttribArray(index);
+    glVertexAttribIPointer(idx, size, type, stride, pointer);
+    glEnableVertexAttribArray(idx);
 }
 
 void GWR_vertex_array_attrib_pointerl(
     const GWR_vertex_array_t *vao,
     const GWR_vertex_buffer_t *vbo,
-    GLuint index, GLint size, GLenum type,
+    GLuint idx, GLint size, GLenum type,
     GLsizei stride, const void *pointer
 ) {
-    if (!vao || !vbo) {
-        VA_LOG(GWR_LOG_ERROR, "attrib_pointerl: null vao or vbo");
-        return;
-    }
+    assert(vao);
+    assert(vbo);
+
     bind_vao_and_vbo(vao, vbo);
-    glVertexAttribLPointer(index, size, type, stride, pointer);
-    glEnableVertexAttribArray(index);
+    glVertexAttribLPointer(idx, size, type, stride, pointer);
+    glEnableVertexAttribArray(idx);
 }
 
 static void bind_vao_and_vbo(const GWR_vertex_array_t *vao, const GWR_vertex_buffer_t *vbo) {
-    glBindVertexArray(vao ? vao->id : 0);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo ? GWR_vertex_buffer_get_id(vbo) : 0);
+    assert(vao);
+    assert(vbo);
+
+    glBindVertexArray(vao->id);
+    glBindBuffer(GL_ARRAY_BUFFER, GWR_vertex_buffer_get_id(vbo));
 }

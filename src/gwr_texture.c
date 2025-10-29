@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -25,9 +26,7 @@ static GLuint create_gl_texture_from_pixels(int width, int height, int channels,
 static GLuint texture_load(const char *path, int *w, int *h);
 
 GWR_texture_t *GWR_texture_load(const char *path) {
-    if (!path) {
-        return NULL;
-    }
+    assert(path);
 
     GLsizei width, height;
     const GLuint id = texture_load(path, &width, &height);
@@ -47,26 +46,32 @@ GWR_texture_t *GWR_texture_load(const char *path) {
 }
 
 void GWR_texture_destroy(GWR_texture_t *texture) {
-    if (!texture) {
-        return;
-    }
-    if (texture->id) {
-        glDeleteTextures(1, &texture->id);
-        texture->id = 0;
-    }
+    assert(texture);
+    assert(texture->id);
+
+    glDeleteTextures(1, &texture->id);
+    texture->id = 0;
+
     free(texture);
+    texture = NULL;
 }
 
 GLuint GWR_texture_get_id(const GWR_texture_t *texture) {
-    return texture ? texture->id : 0;
+    assert(texture);
+
+    return texture->id;
 }
 
 GLsizei GWR_texture_get_width(const GWR_texture_t *texture) {
-    return texture ? texture->width : 0;
+    assert(texture);
+
+    return texture->width;
 }
 
 GLsizei GWR_texture_get_height(const GWR_texture_t *texture) {
-    return texture ? texture->height : 0;
+    assert(texture);
+
+    return texture->height;
 }
 
 static void set_default_params(void) {
@@ -97,9 +102,9 @@ static bool choose_formats(int channels, GLenum *internal_format, GLenum *format
 }
 
 static GLuint create_gl_texture_from_pixels(int width, int height, int channels, const unsigned char *pixels) {
-    if (!pixels || width <= 0 || height <= 0) {
-        return 0;
-    }
+    assert(pixels);
+    assert(width);
+    assert(height);
 
     GLenum internal_format = 0, format = 0;
     if (!choose_formats(channels, &internal_format, &format)) {
@@ -135,6 +140,8 @@ static GLuint create_gl_texture_from_pixels(int width, int height, int channels,
 }
 
 static GLuint texture_load(const char *path, int *w, int *h) {
+    assert(path);
+
     int width = 0, height = 0, channels = 0;
     stbi_set_flip_vertically_on_load(GL_TRUE);
     unsigned char *data = stbi_load(path, &width, &height, &channels, 0);

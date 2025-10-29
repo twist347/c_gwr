@@ -45,7 +45,7 @@ static void wrapper_gl_prog_uniform_mat_4dv(GLuint program, GLint location, GLsi
 
 static void set_uniform_n(GLuint shader_id, GLint loc_id, const void *val, GWR_shader_uniform_data_type_t type, GLsizei n);
 
-static GLboolean check_compile_errors(GLuint shader, const char *type);
+static GLboolean check_compile_errors(GLuint shader_id, const char *type);
 
 static GLboolean check_link_errors(GLuint program);
 
@@ -58,6 +58,8 @@ bool GWR_shader_is_valid(const GWR_shader_t *shader) {
 }
 
 GLuint GWR_shader_compile_src(GLenum type, const char *src) {
+    assert(src);
+
     const GLuint shader = glCreateShader(type);
     if (!shader) {
         SHADER_LOG(GWR_LOG_ERROR, "glCreateShader failed");
@@ -88,9 +90,7 @@ GLuint GWR_shader_compile_src(GLenum type, const char *src) {
 }
 
 GLuint GWR_shader_compile_path(GLenum type, const char *path) {
-    if (!path) {
-        return 0;
-    }
+    assert(path);
 
     size_t sz = 0;
     char *src = read_from_text_file(path, &sz);
@@ -108,10 +108,8 @@ GLuint GWR_shader_compile_path(GLenum type, const char *path) {
 }
 
 GWR_shader_t *GWR_shader_create(GLuint vertex_shader, GLuint fragment_shader) {
-    if (vertex_shader == 0 || fragment_shader == 0) {
-        SHADER_LOG(GWR_LOG_ERROR, "zero IDs of vertex or fragment shaders");
-        return NULL;
-    }
+    assert(vertex_shader);
+    assert(fragment_shader);
 
     GWR_shader_t *shader = malloc(sizeof(GWR_shader_t));
     if (!shader) {
@@ -145,10 +143,8 @@ GWR_shader_t *GWR_shader_create(GLuint vertex_shader, GLuint fragment_shader) {
 }
 
 GWR_shader_t *GWR_shader_create_src(const char *vertex_shader_src, const char *fragment_shader_src) {
-    if (!vertex_shader_src || !fragment_shader_src) {
-        SHADER_LOG(GWR_LOG_ERROR, "null shader sources");
-        return NULL;
-    }
+    assert(vertex_shader_src);
+    assert(fragment_shader_src);
 
     const GLuint vertex_shader = GWR_shader_compile_src(GL_VERTEX_SHADER, vertex_shader_src);
     if (vertex_shader == 0) {
@@ -169,10 +165,8 @@ GWR_shader_t *GWR_shader_create_src(const char *vertex_shader_src, const char *f
 }
 
 GWR_shader_t *GWR_shader_create_path(const char *vertex_shader_path, const char *fragment_shader_path) {
-    if (!vertex_shader_path || !fragment_shader_path) {
-        SHADER_LOG(GWR_LOG_ERROR, "null shader paths");
-        return NULL;
-    }
+    assert(vertex_shader_path);
+    assert(fragment_shader_path);
 
     const GLuint vertex_shader = GWR_shader_compile_path(GL_VERTEX_SHADER, vertex_shader_path);
     if (vertex_shader == 0) {
@@ -192,23 +186,28 @@ GWR_shader_t *GWR_shader_create_path(const char *vertex_shader_path, const char 
 }
 
 void GWR_shader_destroy(GWR_shader_t *shader) {
-    if (shader) {
-        if (shader->id) {
-            glDeleteProgram(shader->id);
-            shader->id = 0;
-        }
-        free(shader);
-    }
+    assert(shader);
+    assert(shader->id);
+
+    glDeleteProgram(shader->id);
+    shader->id = 0;
+
+    free(shader);
+    shader = NULL;
 }
 
 void GWR_shader_use(const GWR_shader_t *shader) {
-    if (shader && shader->id) {
-        glUseProgram(shader->id);
-    }
+    assert(shader);
+    assert(shader->id);
+
+    glUseProgram(shader->id);
 }
 
 GLuint GWR_shader_get_id(const GWR_shader_t *shader) {
-    return shader ? shader->id : 0;
+    assert(shader);
+    assert(shader->id);
+
+    return shader->id;
 }
 
 GLint GWR_shader_get_uniform_loc(const GWR_shader_t *shader, const char *name) {
@@ -253,6 +252,9 @@ void GWR_shader_set_val_name_n(
     GWR_shader_uniform_data_type_t type,
     GLsizei n
 ) {
+    assert(shader);
+    assert(shader->id);
+
     const GLint loc = glGetUniformLocation(shader->id, name);
     if (loc < 0) {
         SHADER_LOG(GWR_LOG_WARNING, "uniform '%s' not found", name);
@@ -265,106 +267,130 @@ void GWR_shader_set_val_name_n(
 
 static void wrapper_gl_prog_uniform1iv(GLuint program, GLint location, GLsizei count, const GLint *value) {
     assert(glProgramUniform1iv);
+
     glProgramUniform1iv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform2iv(GLuint program, GLint location, GLsizei count, const GLint *value) {
     assert(glProgramUniform2iv);
+
     glProgramUniform2iv(program, location, count, value);
 }
 static void wrapper_gl_prog_uniform3iv(GLuint program, GLint location, GLsizei count, const GLint *value) {
     assert(glProgramUniform3iv);
+
     glProgramUniform3iv(program, location, count, value);
 }
 static void wrapper_gl_prog_uniform4iv(GLuint program, GLint location, GLsizei count, const GLint *value) {
     assert(glProgramUniform4iv);
+
     glProgramUniform4iv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform1uiv(GLuint program, GLint location, GLsizei count, const GLuint *value) {
     assert(glProgramUniform1uiv);
+
     glProgramUniform1uiv(program, location, count, value);
 }
 static void wrapper_gl_prog_uniform2uiv(GLuint program, GLint location, GLsizei count, const GLuint *value) {
     assert(glProgramUniform2uiv);
+
     glProgramUniform2uiv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform3uiv(GLuint program, GLint location, GLsizei count, const GLuint *value) {
     assert(glProgramUniform3uiv);
+
     glProgramUniform3uiv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform4uiv(GLuint program, GLint location, GLsizei count, const GLuint *value) {
     assert(glProgramUniform4uiv);
+
     glProgramUniform4uiv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform1fv(GLuint program, GLint location, GLsizei count, const GLfloat *value) {
+    assert(glProgramUniform1fv);
+
     glProgramUniform1fv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform2fv(GLuint program, GLint location, GLsizei count, const GLfloat *value) {
     assert(glProgramUniform2fv);
+
     glProgramUniform2fv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform3fv(GLuint program, GLint location, GLsizei count, const GLfloat *value) {
     assert(glProgramUniform3fv);
+
     glProgramUniform3fv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform4fv(GLuint program, GLint location, GLsizei count, const GLfloat *value) {
     assert(glProgramUniform4fv);
+
     glProgramUniform4fv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform_mat_2fv(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
+    assert(glProgramUniformMatrix2fv);
+
     glProgramUniformMatrix2fv(program, location, count, transpose, value);
 }
 
 static void wrapper_gl_prog_uniform_mat_3fv(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
     assert(glProgramUniformMatrix3fv);
+
     glProgramUniformMatrix3fv(program, location, count, transpose, value);
 }
 
 static void wrapper_gl_prog_uniform_mat_4fv(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
     assert(glProgramUniformMatrix4fv);
+
     glProgramUniformMatrix4fv(program, location, count, transpose, value);
 }
 
 static void wrapper_gl_prog_uniform1dv(GLuint program, GLint location, GLsizei count, const GLdouble *value) {
     assert(glProgramUniform1dv);
+
     glProgramUniform1dv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform2dv(GLuint program, GLint location, GLsizei count, const GLdouble *value) {
     assert(glProgramUniform2dv);
+
     glProgramUniform2dv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform3dv(GLuint program, GLint location, GLsizei count, const GLdouble *value) {
     assert(glProgramUniform3dv);
+
     glProgramUniform3dv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform4dv(GLuint program, GLint location, GLsizei count, const GLdouble *value) {
     assert(glProgramUniform4dv);
+
     glProgramUniform4dv(program, location, count, value);
 }
 
 static void wrapper_gl_prog_uniform_mat_2dv(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble *value) {
     assert(glProgramUniformMatrix2dv);
+
     glProgramUniformMatrix2dv(program, location, count, transpose, value);
 }
 
 static void wrapper_gl_prog_uniform_mat_3dv(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble *value) {
     assert(glProgramUniformMatrix3dv);
+
     glProgramUniformMatrix3dv(program, location, count, transpose, value);
 }
 
 static void wrapper_gl_prog_uniform_mat_4dv(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble *value) {
     assert(glProgramUniformMatrix4dv);
+
     glProgramUniformMatrix4dv(program, location, count, transpose, value);
 }
 
@@ -451,13 +477,13 @@ static void set_uniform_n(GLuint shader_id, GLint loc_id, const void *val, GWR_s
     }
 }
 
-static GLboolean check_compile_errors(GLuint shader, const char *type) {
+static GLboolean check_compile_errors(GLuint shader_id, const char *type) {
     GLint success = GL_FALSE;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    glGetShaderiv(shader_id, GL_COMPILE_STATUS, &success);
 
     if (!success) {
         GLint len = 0;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
+        glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &len);
         if (len < 1) {
             len = 1;
         }
@@ -466,7 +492,7 @@ static GLboolean check_compile_errors(GLuint shader, const char *type) {
             SHADER_LOG(GWR_LOG_ERROR, "'%s' compile failed (no mem for log)", type);
             return GL_FALSE;
         }
-        glGetShaderInfoLog(shader, len, NULL, log);
+        glGetShaderInfoLog(shader_id, len, NULL, log);
         SHADER_LOG(GWR_LOG_ERROR, "'%s' compilation failed:\n%s", type, log);
         free(log);
         return GL_FALSE;
@@ -499,11 +525,10 @@ static GLboolean check_link_errors(GLuint program) {
 }
 
 static char *read_from_text_file(const char *path, size_t *out_size) {
+    assert(path);
+
     if (out_size) {
         *out_size = 0;
-    }
-    if (!path) {
-        return NULL;
     }
 
     FILE *f = fopen(path, "rb");
