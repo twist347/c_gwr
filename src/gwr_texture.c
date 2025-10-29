@@ -1,5 +1,5 @@
-#include "gwr_texture.h"
-#include "gwr_log.h"
+#include "internal/gwr_texture.h"
+#include "internal/gwr_log.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-#include "gwr_math.h"
+#include "internal/gwr_math.h"
 
 float GWR_clamp(float val, float min_val, float max_val) {
     if (val < min_val) {

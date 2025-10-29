@@ -1,4 +1,4 @@
-#include "gwr_log.h"
+#include "internal/gwr_log.h"
 
 #include <assert.h>
 #include <stddef.h>

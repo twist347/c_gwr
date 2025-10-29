@@ -1,5 +1,5 @@
-#include "gwr_shader.h"
-#include "gwr_log.h"
+#include "internal/gwr_shader.h"
+#include "internal/gwr_log.h"
 
 #include <stdio.h>
 #include <stdlib.h>

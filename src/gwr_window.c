@@ -1,16 +1,13 @@
-#include "gwr_window.h"
+#include "internal/gwr_window.h"
+#include "internal/gwr_util.h"
+#include "internal/gwr_log.h"
+#include "internal/gwr_config.h"
 
 #include <assert.h>
-
-#include "gwr_log.h"
-#include "gwr_config.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <glad/glad.h>
-
-#include "gwr_util.h"
+#include "glad/glad.h"
 #include "GLFW/glfw3.h"
 
 #define WINDOW_LOG(level, msg, ...)    GWR_log((level), "[WINDOW]: " msg, ##__VA_ARGS__)

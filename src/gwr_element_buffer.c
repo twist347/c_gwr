@@ -1,5 +1,5 @@
-#include "gwr_element_buffer.h"
-#include "gwr_log.h"
+#include "internal/gwr_element_buffer.h"
+#include "internal/gwr_log.h"
 
 #include <stdlib.h>
 #include <stdbool.h>

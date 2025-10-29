@@ -1,5 +1,5 @@
-#include "gwr_vertex_buffer.h"
-#include "gwr_log.h"
+#include "internal/gwr_vertex_buffer.h"
+#include "internal/gwr_log.h"
 
 #include <stdio.h>
 #include <stdlib.h>

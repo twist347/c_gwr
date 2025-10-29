@@ -1,4 +1,4 @@
-#include "gwr_draw.h"
+#include "internal/gwr_draw.h"
 
 #include <assert.h>
 

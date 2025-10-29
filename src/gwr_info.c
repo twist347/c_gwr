@@ -1,4 +1,4 @@
-#include "gwr_info.h"
+#include "internal/gwr_info.h"
 
 #include <string.h>
 #include <stdio.h>
