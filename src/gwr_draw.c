@@ -1,8 +1,15 @@
 #include "internal/gwr_draw.h"
+#include "internal/gwr_util.h"
 
 #include <assert.h>
 
-void GWR_draw_arrays(GLenum mode, const GWR_vertex_array_t *vao, const GWR_shader_t *shader, GLint first, GLsizei count) {
+void GWR_draw_arrays(
+    GLenum mode,
+    const GWR_vertex_array_t *vao,
+    const GWR_shader_t *shader,
+    GLint first,
+    GLsizei count
+) {
     assert(vao);
     assert(shader);
 
@@ -10,4 +17,15 @@ void GWR_draw_arrays(GLenum mode, const GWR_vertex_array_t *vao, const GWR_shade
     GWR_vertex_array_bind(vao);
     glDrawArrays(mode, first, count);
     GWR_vertex_array_unbind();
+}
+
+void GWR_draw_elements(
+    GLenum mode,
+    const GWR_vertex_array_t *vao,
+    const GWR_shader_t *shader,
+    const GWR_element_buffer_t *ebo,
+    GLsizei count,
+    GLintptr offset
+) {
+    GWR_UNIMPLEMENTED();
 }

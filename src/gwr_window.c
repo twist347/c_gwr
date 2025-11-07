@@ -89,7 +89,6 @@ void GWR_window_destroy(GWR_window_t *window) {
     window->handle = NULL;
 
     free(window);
-    window = NULL;
 
     glfwTerminate();
 }

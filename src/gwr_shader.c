@@ -193,7 +193,6 @@ void GWR_shader_destroy(GWR_shader_t *shader) {
     shader->id = 0;
 
     free(shader);
-    shader = NULL;
 }
 
 void GWR_shader_use(const GWR_shader_t *shader) {

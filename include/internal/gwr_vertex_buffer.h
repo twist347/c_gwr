@@ -2,6 +2,11 @@
 
 #include "glad/glad.h"
 
+/*
+TODO:
+map/unmap
+*/
+
 typedef struct GWR_vertex_buffer_t GWR_vertex_buffer_t;
 
 GWR_vertex_buffer_t *GWR_vertex_buffer_create(const void *data, GLsizeiptr size, GLenum usage);

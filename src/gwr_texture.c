@@ -53,7 +53,6 @@ void GWR_texture_destroy(GWR_texture_t *texture) {
     texture->id = 0;
 
     free(texture);
-    texture = NULL;
 }
 
 GLuint GWR_texture_get_id(const GWR_texture_t *texture) {

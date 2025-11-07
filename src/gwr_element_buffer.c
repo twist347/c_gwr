@@ -1,13 +1,18 @@
 #include "internal/gwr_element_buffer.h"
 #include "internal/gwr_log.h"
+#include "internal/gwr_config.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
 
-#define EBO_LOG(level, msg, ...)    GWR_log((level), "[ELEMENT BUFFER]:", msg, ##__VA_ARGS__)
+#define EBO_LOG(level, msg, ...)    GWR_log((level), "[ELEMENT BUFFER]: " msg, ##__VA_ARGS__)
 
-static bool check_created_size(GLenum target, GLsizeiptr expected);
+static bool check_created_size_bound(GLenum target, GLsizeiptr expected);
+static bool check_created_size_named(GLuint id, GLsizeiptr expected);
+
+static bool wrapper_create_buffer(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size, GLenum usage);
+static void wrapper_set_data(GWR_element_buffer_t* ebo, const void* data, GLsizeiptr size);
 
 struct GWR_element_buffer_t {
     GLuint id;
@@ -18,47 +23,29 @@ struct GWR_element_buffer_t {
 };
 
 GWR_element_buffer_t *GWR_element_buffer_create(const void *data, GLsizeiptr size, GLenum usage) {
-    if (size <= 0) {
-        EBO_LOG(GWR_LOG_ERROR, "invalid buffer size: %ld", size);
-        return NULL;
-    }
+    assert(size > 0);
 
-    GWR_element_buffer_t *buffer = malloc(sizeof(GWR_element_buffer_t));
-    if (!buffer) {
+    GWR_element_buffer_t *ebo = malloc(sizeof(GWR_element_buffer_t));
+    if (!ebo) {
         EBO_LOG(GWR_LOG_ERROR, "failed to allocate GWR_element_buffer_t");
         return NULL;
     }
 
-    buffer->id = 0;
-    buffer->size = 0;
-    buffer->count = 0;
-    buffer->type = GL_UNSIGNED_INT;
-    buffer->usage = usage;
+    ebo->id = 0;
+    ebo->size = 0;
+    ebo->count = 0;
+    ebo->type = GL_UNSIGNED_INT;
+    ebo->usage = usage;
 
-    glGenBuffers(1, &buffer->id);
-    if (!buffer->id) {
-        EBO_LOG(GWR_LOG_ERROR, "failed to glGenBuffers");
-        free(buffer);
+    if (!wrapper_create_buffer(ebo, data, size, usage)) {
+        free(ebo);
         return NULL;
     }
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, usage);
-    const int ok = check_created_size(GL_ELEMENT_ARRAY_BUFFER, size);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    ebo->size  = size;
+    ebo->count = size / sizeof(GLuint);
 
-    if (!ok) {
-        EBO_LOG(GWR_LOG_ERROR, "glBufferData failed to allocate %ld bytes", size);
-        glDeleteBuffers(1, &buffer->id);
-        free(buffer);
-        return NULL;
-    }
-
-    buffer->size = size;
-    buffer->count = size / sizeof(GLuint);
-    buffer->type = GL_UNSIGNED_INT;
-
-    return buffer;
+    return ebo;
 }
 
 void GWR_element_buffer_destroy(GWR_element_buffer_t *ebo) {
@@ -69,7 +56,6 @@ void GWR_element_buffer_destroy(GWR_element_buffer_t *ebo) {
     ebo->id = 0;
 
     free(ebo);
-    ebo = NULL;
 }
 
 void GWR_element_buffer_bind(const GWR_element_buffer_t *ebo) {
@@ -83,26 +69,16 @@ void GWR_element_buffer_unbind(void) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-
 void GWR_element_buffer_set_data(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size) {
     assert(ebo);
     assert(ebo->id);
-    assert(ebo->size);
     assert(ebo->type);
     assert(ebo->usage);
-    assert(data);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo->id);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, ebo->usage);
+    wrapper_set_data(ebo, data, size);
 
-    if (check_created_size(GL_ELEMENT_ARRAY_BUFFER, size)) {
-        ebo->size = size;
-        ebo->count = size / sizeof(GLuint); // Обновляем счетчик
-    } else {
-        EBO_LOG(GWR_LOG_ERROR, "glBufferData failed to allocate %ld bytes", size);
-    }
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    ebo->size  = size;
+    ebo->count = size / sizeof(GLuint);
 }
 
 GLuint GWR_element_buffer_get_id(const GWR_element_buffer_t *ebo) {
@@ -114,14 +90,12 @@ GLuint GWR_element_buffer_get_id(const GWR_element_buffer_t *ebo) {
 
 GLsizeiptr GWR_element_buffer_get_size(const GWR_element_buffer_t *ebo) {
     assert(ebo);
-    assert(ebo->size);
 
     return ebo->size;
 }
 
 GLsizei GWR_element_buffer_get_count(const GWR_element_buffer_t *ebo) {
     assert(ebo);
-    assert(ebo->count);
 
     return ebo->count;
 }
@@ -140,8 +114,81 @@ GLenum GWR_element_buffer_get_usage(const GWR_element_buffer_t *ebo) {
     return ebo->usage;
 }
 
-static bool check_created_size(GLenum target, GLsizeiptr expected) {
+static bool check_created_size_bound(GLenum target, GLsizeiptr expected) {
     GLint64 actual = 0;
     glGetBufferParameteri64v(target, GL_BUFFER_SIZE, &actual);
     return actual == expected;
+}
+
+static bool check_created_size_named(GLuint id, GLsizeiptr expected) {
+    GLint64 actual = 0;
+    glGetNamedBufferParameteri64v(id, GL_BUFFER_SIZE, &actual);
+    return actual == expected;
+}
+
+static bool wrapper_create_buffer(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size, GLenum usage) {
+#if GWR_USE_DSA
+    glCreateBuffers(1, &ebo->id);
+    if (!ebo->id) {
+        EBO_LOG(GWR_LOG_ERROR, "glCreateBuffers returned 0");
+        return false;
+    }
+    glNamedBufferData(ebo->id, size, data, usage);
+    if (!check_created_size_named(ebo->id, size)) {
+        EBO_LOG(GWR_LOG_ERROR, "glNamedBufferData failed to allocate %d bytes", size);
+        glDeleteBuffers(1, &ebo->id);
+        ebo->id = 0;
+        return false;
+    }
+#else
+    glGenBuffers(1, &ebo->id);
+    if (!ebo->id) {
+        EBO_LOG(GWR_LOG_ERROR, "glGenBuffers failed");
+        return false;
+    }
+
+    GLint prev_vao = 0;
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
+
+    glBindVertexArray(0);
+
+    GLint vao0_prev_ebo = 0;
+    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &vao0_prev_ebo);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo->id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, usage);
+    const bool ok = check_created_size_bound(GL_ELEMENT_ARRAY_BUFFER, size);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (GLuint)vao0_prev_ebo);
+
+    glBindVertexArray(prev_vao);
+
+    if (!ok) {
+        EBO_LOG(GWR_LOG_ERROR, "glBufferData failed to allocate %td bytes", (ptrdiff_t)size);
+        glDeleteBuffers(1, &ebo->id);
+        ebo->id = 0;
+        return false;
+    }
+#endif
+    return true;
+}
+
+static void wrapper_set_data(GWR_element_buffer_t* ebo, const void* data, GLsizeiptr size) {
+#if GWR_USE_DSA
+    glNamedBufferData(ebo->id, size, data, ebo->usage);
+#else
+    GLint prev_vao = 0;
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
+
+    glBindVertexArray(0);
+
+    GLint vao0_prev_ebo = 0;
+    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &vao0_prev_ebo);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo->id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, ebo->usage);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao0_prev_ebo);
+    glBindVertexArray((GLuint)prev_vao);
+#endif
 }

@@ -38,7 +38,6 @@ void GWR_vertex_array_destroy(GWR_vertex_array_t *vao) {
     vao->id = 0;
 
     free(vao);
-    vao = NULL;
 }
 
 void GWR_vertex_array_bind(const GWR_vertex_array_t *vao) {
