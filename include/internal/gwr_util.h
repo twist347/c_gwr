@@ -29,3 +29,4 @@
         );                                                                   \
     } while (0)                                                              \
 
+#define GWR_UNREACHABLE()    do { abort(); } while (0)
