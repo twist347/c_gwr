@@ -27,6 +27,11 @@
             stderr,                                                          \
             "[GWR]: unimplemented: %s (%s:%d)", __func__, __FILE__, __LINE__ \
         );                                                                   \
+        abort();                                                             \
     } while (0)                                                              \
 
-#define GWR_UNREACHABLE()    do { abort(); } while (0)
+#define GWR_UNREACHABLE()                                                    \
+    do {                                                                     \
+        fprintf(stderr, "[GWR]: unreachable");                               \
+        abort();                                                             \
+    } while (0)                                     

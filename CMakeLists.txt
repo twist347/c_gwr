@@ -32,6 +32,7 @@ add_library(${T} STATIC
         src/gwr_math.c
         src/gwr_element_buffer.c
         src/gwr_draw.c
+        src/gwr_cap.c
 )
 
 target_compile_definitions(${T} PRIVATE GLFW_INCLUDE_NONE)
