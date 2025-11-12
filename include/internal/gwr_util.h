@@ -7,31 +7,40 @@
 
 #define GWR_UNUSED(val)     ((void) (val))
 
-#define GWR_ASSERT_MSG(cond, msg)                                            \
-    do {                                                                     \
-        if (!(cond)) {                                                       \
-            fprintf(                                                         \
-                stderr,                                                      \
-                "[GWR]: assertion failed: %s. file: %s, line: %d. %s\n",     \
-                #cond, __FILE__, __LINE__, (msg)                             \
-            );                                                               \
-            abort();                                                         \
-        }                                                                    \
+#define GWR_VERIFY_MSG(cond, msg)                                              \
+    do {                                                                       \
+        if (!(cond)) {                                                         \
+            fprintf(                                                           \
+                stderr,                                                        \
+                "[GWR]: verify failed: %s. file: %s, line: %d. %s\n",          \
+                #cond, __FILE__, __LINE__, (msg)                               \
+            );                                                                 \
+            abort();                                                           \
+        }                                                                      \
     } while (0)
 
-#define GWR_ASSERT(cond)    GWR_ASSERT_MSG(cond, "")
+#define GWR_VERIFY(cond)    GWR_VERIFY_MSG(cond, "")
 
-#define GWR_UNIMPLEMENTED()                                                  \
-    do {                                                                     \
-        fprintf(                                                             \
-            stderr,                                                          \
-            "[GWR]: unimplemented: %s (%s:%d)", __func__, __FILE__, __LINE__ \
-        );                                                                   \
-        abort();                                                             \
-    } while (0)                                                              \
+#define GWR_UNIMPLEMENTED()                                                    \
+    do {                                                                       \
+        fprintf(                                                               \
+            stderr,                                                            \
+            "[GWR]: unimplemented: %s (%s:%d)\n",                              \
+            __func__, __FILE__, __LINE__                                       \
+        );                                                                     \
+        fflush(stderr);                                                        \
+        abort();                                                               \
+    } while (0)                                                                \
 
-#define GWR_UNREACHABLE()                                                    \
-    do {                                                                     \
-        fprintf(stderr, "[GWR]: unreachable");                               \
-        abort();                                                             \
+#define GWR_UNREACHABLE()                                                      \
+    do {                                                                       \
+        fprintf(                                                               \
+            stderr,                                                            \
+             "[GWR]: unreachable: %s (%s:%d)\n",                               \
+            __func__, __FILE__, __LINE__                                       \
+        );                                                                     \
+        fflush(stderr);                                                        \
+        abort();                                                               \
     } while (0)                                     
+
+#define GWR_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)

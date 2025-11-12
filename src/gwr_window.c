@@ -2,6 +2,7 @@
 #include "internal/gwr_util.h"
 #include "internal/gwr_log.h"
 #include "internal/gwr_config.h"
+#include "internal/gwr_cap.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -18,8 +19,6 @@ struct GWR_window_t {
 };
 
 // helper funcs
-
-static void require_opengl_version_or_die(int req_major, int req_minor);
 
 static void framebuffer_size_callback(GLFWwindow *handle, int width, int height);
 
@@ -59,7 +58,7 @@ GWR_window_t *GWR_window_create(int width, int height, const char *title) {
         return NULL;
     }
 
-    require_opengl_version_or_die(GWR_OPENGL_MAJOR_VERSION, GWR_OPENGL_MINOR_VERSION);
+    GWR_cap_init();
 
     glfwSwapInterval(1); // VSync
 
@@ -162,24 +161,6 @@ int GWR_window_get_height(const GWR_window_t *window) {
 }
 
 // helper funcs
-
-static void require_opengl_version_or_die(int req_major, int req_minor) {
-    GLint cur_major = 0, cur_minor = 0;
-    glGetIntegerv(GL_MAJOR_VERSION, &cur_major);
-    glGetIntegerv(GL_MINOR_VERSION, &cur_minor);
-
-    const bool ok = (cur_major > req_major) || (cur_major == req_major && cur_minor >= req_minor);
-
-    if (!ok) {
-        WINDOW_LOG(
-            GWR_LOG_ERROR,
-            "OpenGL version does not match required version: expected (%d, %d), current(%d, %d)",
-            req_major, req_minor,
-            cur_major, cur_minor
-        );
-        abort();
-    }
-}
 
 static void framebuffer_size_callback(GLFWwindow *handle, int width, int height) {
     assert(handle);

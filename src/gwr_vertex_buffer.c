@@ -1,6 +1,6 @@
 #include "internal/gwr_vertex_buffer.h"
 #include "internal/gwr_log.h"
-#include "internal/gwr_config.h"
+#include "internal/gwr_cap.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,14 +15,29 @@ struct GWR_vertex_buffer_t {
     GLenum usage;
 };
 
+typedef bool (*vb_create)(GWR_vertex_buffer_t *, const void *, GLsizeiptr, GLenum);
+typedef void (*vb_set_data)(GWR_vertex_buffer_t *, const void *, GLsizeiptr);
+
+static vb_create s_vb_create = NULL;
+static vb_set_data s_vb_set_data = NULL;
+
+// inner funcs decls
+
 static bool check_created_size_bound(GLenum target, GLsizeiptr expected);
 static bool check_created_size_named(GLuint id, GLsizeiptr expected);
 
-static bool wrapper_create_buffer(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size, GLenum usage);
-static void wrapper_set_data(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size);
+static bool backend_create_buffer_dsa(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size, GLenum usage);
+static bool backend_create_buffer_bind(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size, GLenum usage);
+
+static void backend_set_data_dsa(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size);
+static void backend_set_data_bind(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size);
+
+static void vb_pick_backend(void);
+
+// public funcs defs
 
 GWR_vertex_buffer_t *GWR_vertex_buffer_create(const void *data, GLsizeiptr size, GLenum usage) {
-    assert(size > 0);
+    vb_pick_backend();
 
     GWR_vertex_buffer_t *vbo = malloc(sizeof(GWR_vertex_buffer_t));
     if (!vbo) {
@@ -34,7 +49,7 @@ GWR_vertex_buffer_t *GWR_vertex_buffer_create(const void *data, GLsizeiptr size,
     vbo->size = 0;
     vbo->usage = usage;
 
-    if (!wrapper_create_buffer(vbo, data, size, usage)) {
+    if (!s_vb_create(vbo, data, size, usage)) {
         free(vbo);
         return NULL;
     }
@@ -68,7 +83,9 @@ void GWR_vertex_buffer_set_data(GWR_vertex_buffer_t *vbo, const void *data, GLsi
     assert(vbo);
     assert(vbo->id);
 
-    wrapper_set_data(vbo, data, size);
+    vb_pick_backend();
+
+    s_vb_set_data(vbo, data, size);
 
     vbo->size = size;
 }
@@ -92,6 +109,8 @@ GLenum GWR_vertex_buffer_get_usage(const GWR_vertex_buffer_t *vbo) {
     return vbo->usage;
 }
 
+// inner funcs defs
+
 static bool check_created_size_bound(GLenum target, GLsizeiptr expected) {
     GLint64 actual = 0;
     glGetBufferParameteri64v(target, GL_BUFFER_SIZE, &actual);
@@ -104,11 +123,9 @@ static bool check_created_size_named(GLuint id, GLsizeiptr expected) {
     return actual == expected;
 }
 
-static bool wrapper_create_buffer(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size, GLenum usage) {
+static bool backend_create_buffer_dsa(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size, GLenum usage) {
     assert(vbo);
-
-#if GWR_USE_DSA
-
+    
     vbo->id = 0;
 
     glCreateBuffers(1, &vbo->id);
@@ -124,8 +141,12 @@ static bool wrapper_create_buffer(GWR_vertex_buffer_t *vbo, const void *data, GL
         vbo->id = 0;
         return false;
     }
+    return true;
+}
 
-#else
+static bool backend_create_buffer_bind(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size, GLenum usage) {
+    assert(vbo);
+    
     glGenBuffers(1, &vbo->id);
     if (!vbo->id) {
         VB_LOG(GWR_LOG_ERROR, "glGenBuffers failed");
@@ -146,20 +167,38 @@ static bool wrapper_create_buffer(GWR_vertex_buffer_t *vbo, const void *data, GL
         vbo->id = 0;
         return false;
     }
-#endif
-
     return true;
 }
 
-static void wrapper_set_data(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size) {
-#if GWR_USE_DSA
+static void backend_set_data_dsa(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size) {
+    assert(vbo);
+
     glNamedBufferData(vbo->id, size, data, vbo->usage);
-#else
+}
+
+static void backend_set_data_bind(GWR_vertex_buffer_t *vbo, const void *data, GLsizeiptr size) {
+    assert(vbo);
+
     GLint prev = 0;
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo->id);
     glBufferData(GL_ARRAY_BUFFER, size, data, vbo->usage);
     glBindBuffer(GL_ARRAY_BUFFER, prev);
-#endif
+}
+
+static void vb_pick_backend(void) {
+    if (s_vb_create && s_vb_set_data) {
+        return;
+    }
+
+    if (!GWR_cap_is_init()) {
+        VB_LOG(GWR_LOG_ERROR, "cap not initialized; call GWR_cap_init() first");
+        return;
+    }
+
+    const bool has_dsa = GWR_cap_has(GWR_FEATURE_DIRECT_STATE_ACCESS); 
+
+    s_vb_create = has_dsa ? backend_create_buffer_dsa : backend_create_buffer_bind;
+    s_vb_set_data = has_dsa ? backend_set_data_dsa : backend_set_data_bind;
 }

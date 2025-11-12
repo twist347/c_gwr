@@ -1,18 +1,12 @@
 #include "internal/gwr_element_buffer.h"
 #include "internal/gwr_log.h"
-#include "internal/gwr_config.h"
+#include "internal/gwr_cap.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
 
-#define EBO_LOG(level, msg, ...)    GWR_log((level), "[ELEMENT BUFFER]: " msg, ##__VA_ARGS__)
-
-static bool check_created_size_bound(GLenum target, GLsizeiptr expected);
-static bool check_created_size_named(GLuint id, GLsizeiptr expected);
-
-static bool wrapper_create_buffer(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size, GLenum usage);
-static void wrapper_set_data(GWR_element_buffer_t* ebo, const void* data, GLsizeiptr size);
+#define EB_LOG(level, msg, ...)    GWR_log((level), "[ELEMENT BUFFER]: " msg, ##__VA_ARGS__)
 
 struct GWR_element_buffer_t {
     GLuint id;
@@ -22,12 +16,33 @@ struct GWR_element_buffer_t {
     GLenum usage;
 };
 
+typedef bool (*eb_create)(GWR_element_buffer_t *, const void *, GLsizeiptr, GLenum);
+typedef void (*eb_set_data)(GWR_element_buffer_t *, const void *, GLsizeiptr);
+
+static eb_create s_eb_create= NULL;
+static eb_set_data s_eb_set_data = NULL;
+
+// inner funcs decls
+
+static bool check_created_size_bound(GLenum target, GLsizeiptr expected);
+static bool check_created_size_named(GLuint id, GLsizeiptr expected);
+
+static bool backend_create_buffer_dsa(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size, GLenum usage);
+static bool backend_create_buffer_bind(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size, GLenum usage);
+
+static void backend_set_data_dsa(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size);
+static void backend_set_data_bind(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size);
+
+static void eb_pick_backend(void);
+
+// public funcs defs
+
 GWR_element_buffer_t *GWR_element_buffer_create(const void *data, GLsizeiptr size, GLenum usage) {
-    assert(size > 0);
+    eb_pick_backend();
 
     GWR_element_buffer_t *ebo = malloc(sizeof(GWR_element_buffer_t));
     if (!ebo) {
-        EBO_LOG(GWR_LOG_ERROR, "failed to allocate GWR_element_buffer_t");
+        EB_LOG(GWR_LOG_ERROR, "failed to allocate GWR_element_buffer_t");
         return NULL;
     }
 
@@ -37,7 +52,7 @@ GWR_element_buffer_t *GWR_element_buffer_create(const void *data, GLsizeiptr siz
     ebo->type = GL_UNSIGNED_INT;
     ebo->usage = usage;
 
-    if (!wrapper_create_buffer(ebo, data, size, usage)) {
+    if (!s_eb_create(ebo, data, size, usage)) {
         free(ebo);
         return NULL;
     }
@@ -75,7 +90,7 @@ void GWR_element_buffer_set_data(GWR_element_buffer_t *ebo, const void *data, GL
     assert(ebo->type);
     assert(ebo->usage);
 
-    wrapper_set_data(ebo, data, size);
+    s_eb_set_data(ebo, data, size);
 
     ebo->size  = size;
     ebo->count = size / sizeof(GLuint);
@@ -114,6 +129,8 @@ GLenum GWR_element_buffer_get_usage(const GWR_element_buffer_t *ebo) {
     return ebo->usage;
 }
 
+// inner funcs defs
+
 static bool check_created_size_bound(GLenum target, GLsizeiptr expected) {
     GLint64 actual = 0;
     glGetBufferParameteri64v(target, GL_BUFFER_SIZE, &actual);
@@ -126,24 +143,30 @@ static bool check_created_size_named(GLuint id, GLsizeiptr expected) {
     return actual == expected;
 }
 
-static bool wrapper_create_buffer(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size, GLenum usage) {
-#if GWR_USE_DSA
+static bool backend_create_buffer_dsa(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size, GLenum usage) {
+    assert(ebo);
+    
     glCreateBuffers(1, &ebo->id);
     if (!ebo->id) {
-        EBO_LOG(GWR_LOG_ERROR, "glCreateBuffers returned 0");
+        EB_LOG(GWR_LOG_ERROR, "glCreateBuffers returned 0");
         return false;
     }
     glNamedBufferData(ebo->id, size, data, usage);
     if (!check_created_size_named(ebo->id, size)) {
-        EBO_LOG(GWR_LOG_ERROR, "glNamedBufferData failed to allocate %d bytes", size);
+        EB_LOG(GWR_LOG_ERROR, "glNamedBufferData failed to allocate %d bytes", size);
         glDeleteBuffers(1, &ebo->id);
         ebo->id = 0;
         return false;
     }
-#else
+    return true;
+}
+
+static bool backend_create_buffer_bind(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size, GLenum usage) {
+    assert(ebo);
+    
     glGenBuffers(1, &ebo->id);
     if (!ebo->id) {
-        EBO_LOG(GWR_LOG_ERROR, "glGenBuffers failed");
+        EB_LOG(GWR_LOG_ERROR, "glGenBuffers failed");
         return false;
     }
 
@@ -164,19 +187,23 @@ static bool wrapper_create_buffer(GWR_element_buffer_t *ebo, const void *data, G
     glBindVertexArray(prev_vao);
 
     if (!ok) {
-        EBO_LOG(GWR_LOG_ERROR, "glBufferData failed to allocate %td bytes", (ptrdiff_t)size);
+        EB_LOG(GWR_LOG_ERROR, "glBufferData failed to allocate %td bytes", size);
         glDeleteBuffers(1, &ebo->id);
         ebo->id = 0;
         return false;
     }
-#endif
     return true;
 }
 
-static void wrapper_set_data(GWR_element_buffer_t* ebo, const void* data, GLsizeiptr size) {
-#if GWR_USE_DSA
+static void backend_set_data_dsa(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size) {
+    assert(ebo);
+
     glNamedBufferData(ebo->id, size, data, ebo->usage);
-#else
+}
+
+static void backend_set_data_bind(GWR_element_buffer_t *ebo, const void *data, GLsizeiptr size) {
+    assert(ebo);
+
     GLint prev_vao = 0;
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
 
@@ -190,5 +217,20 @@ static void wrapper_set_data(GWR_element_buffer_t* ebo, const void* data, GLsize
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao0_prev_ebo);
     glBindVertexArray((GLuint)prev_vao);
-#endif
+}
+
+static void eb_pick_backend(void) {
+    if (s_eb_create && s_eb_set_data) {
+        return;
+    }
+
+    if (!GWR_cap_init()) {
+        EB_LOG(GWR_LOG_ERROR, "cap not initialized; call GWR_cap_init() first");
+        return;
+    }
+
+    const bool has_dsa = GWR_cap_has(GWR_FEATURE_DIRECT_STATE_ACCESS); 
+
+    s_eb_create = has_dsa ? backend_create_buffer_dsa : backend_create_buffer_bind;
+    s_eb_set_data = has_dsa ? backend_set_data_dsa : backend_set_data_bind;
 }

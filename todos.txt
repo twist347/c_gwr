@@ -1,1 +1,2 @@
-1. add asserts for * instead of 'if'
+1. (done) add asserts for * instead of 'if'
+2. use caps in vao

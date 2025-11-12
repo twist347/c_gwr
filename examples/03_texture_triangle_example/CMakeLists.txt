@@ -1,4 +1,4 @@
-set(T 03_texture_triangle_example)
+set(T 01_texture_triangle_example)
 
 add_executable(${T} main.c)
 target_link_libraries(${T} c_gwr m)
