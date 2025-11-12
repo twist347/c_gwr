@@ -224,7 +224,7 @@ static void eb_pick_backend(void) {
         return;
     }
 
-    if (!GWR_cap_init()) {
+    if (!GWR_cap_is_init()) {
         EB_LOG(GWR_LOG_ERROR, "cap not initialized; call GWR_cap_init() first");
         return;
     }
